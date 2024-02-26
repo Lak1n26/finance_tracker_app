@@ -6,10 +6,6 @@ import datetime, time
 import os
 
 
-# with open('config.txt') as file:
-#     API_KEY = file.readline()
-#     SHEET_ID = file.readline()
-
 API_KEY = os.environ['API_KEY']
 SHEET_ID = os.environ['SHEET_ID']
 
@@ -53,53 +49,15 @@ st.line_chart(data=part, x='Дата', y='Всего')
 last_change = str(max(df['Дата']))[:10]
 st.text(f'Дата последнего внесения данных: {last_change}')
 
-st.write()
-st.write()
+
 sheet_name = 'План'
 range = 'A1:C20'
-url_data = requests.get(f'https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{sheet_name}!{range}?key={api_key}')
+url_data = requests.get(f'https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/{sheet_name}!{range}?key={API_KEY}')
 plan = pd.DataFrame(url_data.json()['values'][1:], columns=url_data.json()['values'][0])
 plan = plan.fillna('')
 with st.expander("ПЛАН"):
     st.table(plan)
 
 
-
-# st.write('Построим линейную регрессию')
-# import statsmodels.api as sm
-# X = df.index
-# y = df['Всего']
-# X = sm.add_constant(X)
-
-# model = sm.OLS(y, X)
-# results = model.fit()
-# st.write(results.summary())
-
-
-# st.date_input(
-#     "Select a date range",
-#     (pd.to_datetime('2023-10-01'), pd.to_datetime('2024-02-25'))
-# )
-
-
-
-# sidebar
-# with st.sidebar:
-#     with st.spinner("Loading..."):
-#         time.sleep(5)
-#     st.success("Done!")
-
-
-# 2 вкладки
-# tab1, tab2 = st.tabs(["Факт", "Плн"])
-# tab1.write("this is tab 1")
-# tab2.write("this is tab 2")
-# with tab1:
-#     st.table(df)
-# with tab2:
-#     st.table(plan)
-
-
-# https://arnaudmiribel.github.io/streamlit-extras/extras/metric_cards/
 
 
