@@ -59,5 +59,28 @@ with st.expander("ПЛАН"):
     st.table(plan)
 
 
+st.title('Линейная регрессия')
+from sklearn.linear_model import LinearRegression
+from datetime import timedelta
+
+periods = st.number_input("Введите прогнозируемое число дней", value=30)
+
+date_range = pd.DataFrame(pd.date_range(min(df['Дата']), max(df['Дата'])), columns=['Дата'])
+train_df = date_range.merge(df[['Дата', 'Всего']], how='left')
+train_df = train_df.fillna(method='ffill')
+train_df.index = train_df.index + 1
+
+
+X = np.reshape(train_df.index, (-1, 1))
+y = train_df['Всего']
+reg = LinearRegression(fit_intercept=True).fit(X, y)
+train_df['Прогноз'] = reg.intercept_ + train_df.index * reg.coef_
+
+test_df = pd.DataFrame(pd.date_range(max(train_df['Дата']) + timedelta(days=1), periods=periods), columns=['Дата'])
+test_df.index = np.arange(max(train_df.index) + 1, max(train_df.index) + periods + 1)
+test_df['Прогноз'] = reg.intercept_ + test_df.index * reg.coef_
+
+total_df = pd.concat([train_df, test_df], axis=0)
+st.line_chart(data=total_df, x='Дата', y=['Всего', 'Прогноз'], color=[(0, 0, 255), (255, 0, 0)])
 
 
