@@ -50,14 +50,6 @@ last_change = str(max(df['Дата']))[:10]
 st.text(f'Дата последнего внесения данных: {last_change}')
 
 
-sheet_name = 'План'
-range = 'A1:C20'
-url_data = requests.get(f'https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/{sheet_name}!{range}?key={API_KEY}')
-plan = pd.DataFrame(url_data.json()['values'][1:], columns=url_data.json()['values'][0])
-plan = plan.fillna('')
-with st.expander("ПЛАН"):
-    st.table(plan)
-
 
 st.title('Линейная регрессия')
 from sklearn.linear_model import LinearRegression
@@ -74,13 +66,47 @@ train_df.index = train_df.index + 1
 X = np.reshape(train_df.index, (-1, 1))
 y = train_df['Всего']
 reg = LinearRegression(fit_intercept=True).fit(X, y)
-train_df['Прогноз'] = reg.intercept_ + train_df.index * reg.coef_
 
+st.write(f'Прогнозируемые сбережения за 1 день: {int(reg.coef_[0])} рублей')
+
+economy_per_day = st.slider('Величина сбережений за 1 день', int(reg.coef_[0]) // 2, int(reg.coef_[0]) * 2, int(reg.coef_[0]))
+
+train_df['Прогноз'] = reg.intercept_ + train_df.index * economy_per_day
+
+# прогнозируем на N дней вперед
 test_df = pd.DataFrame(pd.date_range(max(train_df['Дата']) + timedelta(days=1), periods=periods), columns=['Дата'])
 test_df.index = np.arange(max(train_df.index) + 1, max(train_df.index) + periods + 1)
-test_df['Прогноз'] = reg.intercept_ + test_df.index * reg.coef_
+test_df['Прогноз'] = reg.intercept_ + test_df.index * economy_per_day
 
+# объединяем фактические данные и прогнозируемые
 total_df = pd.concat([train_df, test_df], axis=0)
 st.line_chart(data=total_df, x='Дата', y=['Всего', 'Прогноз'], color=[(0, 0, 255), (255, 0, 0)])
+
+
+# создадим ДФ с отчетными датами
+plan_completed = pd.DataFrame({'Дата': ['2023-12-31', '2024-01-31', '2024-02-29', '2024-03-31', '2024-04-30', '2024-05-31', '2024-06-30', '2024-07-31', '2024-08-31'],
+                               'Период': ['На конец декабря \'23', 'На конец января \'24', 'На конец февраля \'24', 'На конец марта \'24', 'На конец апреля \'24', 
+                                'На конец мая \'24', 'На конец июня \'24', 'На конец июля \'24', 'На конец августа \'24'],
+                                'План, тыс.руб.': [150, 220, 410, 470, 540, 620, 700, 800, 850]})
+plan_completed['Дата'] = pd.to_datetime(plan_completed['Дата'])
+
+# прогноз сбережений на год вперед
+test_df = pd.DataFrame(pd.date_range(max(train_df['Дата']) + timedelta(days=1), periods=365), columns=['Дата'])
+test_df.index = np.arange(max(train_df.index) + 1, max(train_df.index) + 365 + 1)
+test_df['Прогноз'] = reg.intercept_ + test_df.index * economy_per_day
+total_df = pd.concat([train_df, test_df], axis=0)
+
+# оставляем прогнозируемые значения на отчетные даты
+plan_completed = plan_completed.merge(total_df)
+plan_completed['Факт, тыс.руб.'] = plan_completed['Всего'].fillna(plan_completed['Прогноз'])
+plan_completed['Факт, тыс.руб.'] = (plan_completed['Факт, тыс.руб.'] // 1000).astype(np.int64)
+plan_completed = plan_completed[['Период', 'План, тыс.руб.', 'Факт, тыс.руб.']]
+plan_completed['Выполнен план'] = (plan_completed['План, тыс.руб.'] <= plan_completed['Факт, тыс.руб.'])
+plan_completed['Выполнен план'] = plan_completed['Выполнен план'].apply(lambda x: 'Да' if x == True else 'Нет')
+
+
+with st.expander("ПЛАН"):
+    st.table(plan_completed)
+
 
 
